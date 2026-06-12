@@ -81,6 +81,24 @@ if (!(file.exists(here("output", "dds_full")))) {
   
 }
 
+# saving to excel sheets
+
+norm_counts_list <- lapply(dds_full, function(a) {
+  mat <- as.data.frame(counts(a, normalized = TRUE))
+  mat$genes <- rowData(a)$external_gene_name
+  mat
+})
+
+for (nm in names(norm_counts_list)) {
+  write.xlsx(
+    norm_counts_list[[nm]],
+    file = here("output", "excel_sheets",paste0(nm, "_SizeFactorNormalised_counts.xlsx")),
+    overwrite = TRUE
+  )
+}
+
+
+
 # averaging replicates
 averaged <- list()
 for (i in names(dds_full)){
