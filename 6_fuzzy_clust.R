@@ -11,6 +11,7 @@ library(decoupleR)
 library(OmnipathR)
 library(tidyr)
 library(DESeq2)
+library(edgeR)
 
 
 # reading in data separated by CS
@@ -170,6 +171,62 @@ for (i in names(CS17_clus_list)){
 plotCounts(dds_full[["CS17"]], gene = "ENSG00000204859", intgroup=c("subdomain"))
 
 
+## genes of interest
+genes_of_interest <- unique(c(
+  "PEG3","JUN","FOSB","NR4A1","KLF2","REL","HES1","EGR3","IRF1","ATF3",
+  "BACH2","NANOG","SKIL","RARG","ZNF736","ZNF471","ZIM2","ZNF439","SIM1",
+  "SOX17","ZNF667","ZNF492","ZNF528","ZNF662","ZNF880","FOXC2","EBF1",
+  "ZNF208","RORA","SNAI1","CREB5","ZNF257","KDM5D","ZNF442","ZNF44",
+  "DDIT3","HEY2","PRDM16","TCEAL5","SMAD7","CXCL10","ART3", "YAP1", "WWTR1", 
+  
+  # HOXA
+  "HOXA1","HOXA2","HOXA3","HOXA4","HOXA5","HOXA6","HOXA7","HOXA9","HOXA10","HOXA11","HOXA13",
+  
+  # HOXB
+  "HOXB1","HOXB2","HOXB3","HOXB4","HOXB5","HOXB6","HOXB7","HOXB8","HOXB9","HOXB13",
+  
+  # HOXC
+  "HOXC4","HOXC5","HOXC6","HOXC8","HOXC9","HOXC10","HOXC11","HOXC12","HOXC13",
+  
+  # HOXD
+  "HOXD1","HOXD3","HOXD4","HOXD8","HOXD9","HOXD10","HOXD11","HOXD12","HOXD13",
+  
+  # Hematopoietic / endothelial TFs
+  "FLI1","ERG","GATA2","RUNX1","TAL1","LYL1","LMO2",
+  
+  # Calvanese genes (new additions, deduped)
+  "MYB","GFI1","GFI1B","MLLT3","HLF","MECOM","MSI2",
+  
+  # more genes
+  "RUNX1", "MYB", "MYC", "IKZF1", "YAP1", "WWTR1", "EBF1", "KLF2", "EGR3", "SOX17", "SNAI1", "SPI1"
+))
+
+genes_of_interest_result <- lapply(names(CS17_clus_list), function(clust_name) {
+  
+  df <- as.data.frame(CS17_clus_list[[clust_name]])
+  
+  df %>%
+    filter(external_gene_name %in% genes_of_interest) %>%
+    mutate(cluster = clust_name) %>%
+    dplyr::select(external_gene_name, cluster, row.y)
+}) %>%
+  bind_rows()
+library(openxlsx)
+
+write.xlsx(genes_of_interest_result,
+           file = "mfuzz_genes_of_interest_result.xlsx",
+           rowNames = FALSE)
+
+genes_idx <- which(featureNames(exprset_std[["CS17"]]) %in% genes_of_interest_result$row.y)
+mfuzz.plot2(exprset_std[["CS17"]],
+            cl = c1_CS17,
+            mfrow = c(4,4), 
+            time.labels = c("V", "VL", "DL", "D"),
+            xlab = "Subdomain",
+            colo = "fancy",
+            min.mem = 0,
+            centre = TRUE,
+            genes = genes_idx)
 
 # preparing gene lists for ORA
 
@@ -195,7 +252,7 @@ for (i in names(CS17_clus_list)){
 }  
 #b <- data.frame(CS_17_fuzzy_entrez[[10]])
 
-a <- CS17_clust_8[which(CS17_clust_8$ENTREZID %in% CS17_fuzzy_kegg_ora_8[CS17_fuzzy_kegg_ora_8$Description == "Hippo signalling pathway"])]
+#a <- CS17_clust_8[which(CS17_clust_8$ENTREZID %in% CS17_fuzzy_kegg_ora_8[CS17_fuzzy_kegg_ora_8$Description == "Hippo signalling pathway"])]
 
 # KEGG oRA
 
@@ -227,7 +284,7 @@ head(CS17_fuzzy_kegg_mod)
 # plotting this
 dev.new()
 for (i in c(1,2,3,4,5,6,8)){
-  print(dotplot(CS17_fuzzy_kegg_mod[[i]], showCategory=42, font.size = 8) + ggtitle(paste0("KEGG ORA dotplot for ", i))) + scale_y_discrete(labels=function(x) str_wrap(x, width=40))
+  print(clusterProfiler::dotplot(CS17_fuzzy_kegg_mod[[i]], showCategory=42, font.size = 8) + ggtitle(paste0("KEGG ORA dotplot for ", i))) + scale_y_discrete(labels=function(x) str_wrap(x, width=40))
   # + theme(text=element_text(size=20), #change font size of all text
   #goplot(go_ora[[i]]) #+ ggtitle(paste0("GO ORA dotplot for ", i)) + facet_grid(.~.sign)
 } 
@@ -331,7 +388,7 @@ names(CS17_kegg_text_list) <- paste0("clust_",seq_along(CS17_kegg_text_list))
 
 for (i in c("clust_1" ,"clust_2" ,"clust_3" , "clust_5" ,"clust_6" , "clust_8")){
   dev.new()
-  i <- "clust_1"
+  #i <- "clust_1"
   std <- t(data.frame(exprset_std[["CS17"]]))
   # genes from cluster
   #CS17_fuzzy_assay[[i]] <- averaged[["CS17"]][which(rownames(averaged[["CS17"]]) %in% CS17_clus_list[[i]]$Row.names),]
@@ -394,6 +451,185 @@ for(i in seq_along(CS17_kegg_text_list)) {
     grid.text(paste(CS17_kegg_text_list, collapse = "\n"), x = unit(4, "mm"), just = "left")
   })
 }
+
+
+# genes of interest per cluster
+CS17_goi_text_list <- genes_of_interest_result %>%
+  group_by(cluster) %>%
+  summarise(
+    genes = paste(unique(external_gene_name), collapse = ", ")
+  ) %>%
+  tibble::deframe()
+
+# make sure all clusters exist
+all_clusters <- paste0("clust_", seq_along(CS17_clus_list))
+
+for(cl in all_clusters){
+  if(!cl %in% names(CS17_goi_text_list)){
+    CS17_goi_text_list[[cl]] <- ""
+  }
+}
+
+for(cl in all_clusters){
+  if(!cl %in% names(CS17_kegg_text_list)){
+    CS17_kegg_text_list[[cl]] <- ""
+  }
+}
+
+
+
+###############################################
+# create output folder
+dir.create(
+  here("figs", "mfuzz_heatmaps"),
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+for (i in c("clust_1","clust_2","clust_3","clust_4",
+            "clust_5","clust_6", "clust_7", "clust_8")) {
+  
+  graphics.off()
+  
+  png(
+    filename = here("figs", "mfuzz_heatmaps", paste0(i, ".png")),
+    width = 5000,
+    height = 3500,
+    res = 300
+  )
+  
+  std <- t(data.frame(exprset_std[["CS17"]]))
+  
+  # genes from cluster
+  CS17_fuzzy_assay[[i]] <- std[
+    which(rownames(std) %in% CS17_clus_list[[i]]$Row.names),
+  ]
+  
+  # skip empty clusters
+  if(nrow(CS17_fuzzy_assay[[i]]) == 0) {
+    dev.off()
+    next
+  }
+  
+  # -----------------------------
+  # GENES OF INTEREST
+  # -----------------------------
+  
+  goi_df <- genes_of_interest_result %>%
+    filter(cluster == i)
+  
+  # rows containing GOI
+  goi_rows <- which(
+    rownames(CS17_fuzzy_assay[[i]]) %in% goi_df$row.y
+  )
+  
+  # labels in correct order
+  goi_labels <- goi_df$external_gene_name[
+    match(
+      rownames(CS17_fuzzy_assay[[i]])[goi_rows],
+      goi_df$row.y
+    )
+  ]
+  
+  # remove NAs
+  keep <- !is.na(goi_labels)
+  goi_rows <- goi_rows[keep]
+  goi_labels <- goi_labels[keep]
+  
+  # LEFT annotation only if genes exist
+  if(length(goi_rows) > 0) {
+    
+    left_ha <- rowAnnotation(
+      genes = anno_mark(
+        at = goi_rows,
+        labels = goi_labels,
+        side = "left",
+        
+        labels_gp = gpar(fontsize = 10),
+        labels_rot = 0,
+        
+        link_width = unit(5, "mm"),
+        link_height = unit(3, "mm"),
+        
+        padding = unit(1.5, "mm"),
+        
+        extend = unit(c(2, 2), "cm")
+      ),
+      
+      width = unit(6, "cm")
+    )
+    
+  } else {
+    
+    left_ha <- NULL
+  }
+  
+  # RIGHT annotation
+  if(length(CS17_kegg_text_list[[i]]) == 0) {
+    
+    ha <- NULL
+    
+  } else {
+    
+    ha <- rowAnnotation(
+      textbox = anno_textbox(
+        list(i = 1:nrow(CS17_fuzzy_assay[[i]])),
+        list(i = CS17_kegg_text_list[[i]]),
+        
+        word_wrap = TRUE,
+        add_new_line = TRUE,
+        
+        gp = gpar(fontsize = 11),
+        padding = unit(1.5, "mm")
+      ),
+      
+      width = unit(9, "cm")
+    )
+  }
+  
+  # HEATMAP
+  ht <- Heatmap(
+    CS17_fuzzy_assay[[i]],
+    
+    name = paste0("Cluster ", i),
+    col = col_fun,
+    
+    show_heatmap_legend = FALSE,
+    
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    show_row_names = FALSE,
+    
+    row_title = paste0("Cluster ", i),
+    
+    left_annotation = left_ha,
+    right_annotation = ha,
+    
+    row_title_gp = gpar(fontsize = 18),
+    column_names_gp = gpar(fontsize = 14),
+    
+    width = unit(14, "cm"),
+    height = unit(24, "cm"),
+    
+    column_names_rot = 45
+  )
+  
+  draw(
+    ht,
+    padding = unit(c(10, 35, 10, 10), "mm")
+  )
+  
+  
+  dev.off()
+}
+
+
+
+#######
+
+
+
+
 
 
 
