@@ -9,7 +9,7 @@ meta$matname <- gsub(x = meta$raw.file, pattern = "_1.fastq.gz", replacement = "
 meta$title <- make.unique(meta$title, sep = "_")
 
 # reading in quant files
-quant_files <- list.files(path = 'salmon/nodecoy_k21_quant', pattern = "_cut", full.names = TRUE)
+quant_files <- list.files(path = 'Y:/Sharmilla/Edie_AGM_CS16_17/LCMSeq_RNASeq/trimmed_LCMSeq_RNASeq/salmon/nodecoy_k21_quant', pattern = "_cut", full.names = TRUE)
 quant_files
 quant_files <- paste0(quant_files, "/quant.sf")
 quant_files
@@ -122,4 +122,3 @@ saveRDS(subsets, file = here("output", "subsets"))
 # inner_V_D = meta[which(meta$subdomain == "Ventral_Inner_V_Inner" | meta$subdomain == "Dorsal_Inner_D_Inner"),]
 # mid_V_D = meta[which(meta$subdomain == "Ventral_Mid_V_Mid" | meta$subdomain == "Dorsal_Mid_D_Mid"),]
 # outer_V_D = meta[which(meta$subdomain == "Ventral_Outer_V_Outer" | meta$subdomain == "Dorsal_Outer_D_Outer"),]
-
